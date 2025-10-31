@@ -11,7 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
 
 # Version du proxy
-VERSION = "1.2.0"  # Réencodage avec IDR forcées
+VERSION = "1.2.1"  # Fix x264-params syntax pour IDR forcées
 
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
@@ -83,11 +83,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 '-b:v', '512k',              # Bitrate
                 '-maxrate', '512k',
                 '-bufsize', '1M',
-                # IDR forcées
-                '-g', '12',                  # IDR toutes les 12 frames (~0.5s à 24fps)
-                '-keyint_min', '12',         # Min aussi = force IDR
-                '-sc_threshold', '0',        # Pas de scene cut auto
-                '-x264-params', 'keyint=12:min-keyint=12:no-scenecut',
+                        # IDR forcées
+                        '-force_key_frames', 'expr:gte(n,n_forced*12)',  # IDR toutes les 12 frames
+                        '-g', '12',                  # GOP size max
+                        '-sc_threshold', '0',        # Désactiver scene cut detection
                 # Output
                 '-f', 'h264',
                 '-an',                       # Pas d'audio (simplifie)
