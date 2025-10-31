@@ -48,12 +48,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
         
         logging.info(f"Stream demandé: {video_id}")
         
-        # Construire l'URL Jellyfin
-        jellyfin_url = f"http://{JELLYFIN_HOST}:{JELLYFIN_PORT}/Videos/{video_id}/stream.mp4"
+        # Construire l'URL Jellyfin (Direct Stream - pas de transcode)
+        # Direct Stream évite le problème "moov atom not found" avec les streams fragmentés
+        jellyfin_url = f"http://{JELLYFIN_HOST}:{JELLYFIN_PORT}/Videos/{video_id}/stream"
         params = (
-            "Static=false&VideoCodec=h264&AudioCodec=aac&"
-            "MaxWidth=480&MaxHeight=272&VideoBitrate=512000&"
-            "AudioBitrate=64000&VideoLevel=13&Profile=baseline&"
+            f"Static=true&MediaSourceId={video_id}&"
             f"api_key={API_KEY}"
         )
         
