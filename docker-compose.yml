@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  psp-h264-proxy:
+    container_name: psp-h264-proxy
+    image: ghcr.io/janokun/psp-h264-proxy:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      # Configuration Jellyfin
+      JELLYFIN_HOST: "10.19.78.73"  # IP du serveur Jellyfin (localhost si même machine)
+      JELLYFIN_PORT: "21409"         # Port Jellyfin
+      API_KEY: "8645890e48eb48a99a9eb28a72d30362"
+      
+      # Proxy
+      PROXY_PORT: "9000"
+      
+      # Logs
+      LOG_FILE: "/app/psp-h264-proxy.log"
+    networks:
+      - jellyfin_network  # Optionnel : si vous avez un réseau Docker dédié
+    # Si Jellyfin est sur un réseau Docker, utiliser:
+    # networks:
+    #   - jellyfin_network
+    # Si Jellyfin est sur l'hôte, utiliser:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  jellyfin_network:
+    external: true  # Réutiliser le réseau de votre stack Jellyfin existante
+

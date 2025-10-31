@@ -1,0 +1,35 @@
+{
+  "name": "PSP H.264 Proxy",
+  "description": "Convertit les streams Jellyfin MP4/fMP4 en H.264 Annex-B pour PSP",
+  "icon": "🎮",
+  "image": "ghcr.io/j4n0kun/psp-h264-proxy:latest",
+  "restart_policy": "unless-stopped",
+  "network_mode": "bridge",
+  "ports": [
+    {
+      "container": 9000,
+      "host": 9000,
+      "protocol": "tcp"
+    }
+  ],
+  "environment": {
+    "JELLYFIN_HOST": "10.19.78.73",
+    "JELLYFIN_PORT": "21409",
+    "API_KEY": "8645890e48eb48a99a9eb28a72d30362",
+    "PROXY_PORT": "9000"
+  },
+  "volumes": [],
+  "labels": {
+    "cosmos.app.name": "PSP H.264 Proxy",
+    "cosmos.app.category": "Media",
+    "cosmos.app.description": "H.264 Annex-B proxy for PSP Jellyfin streaming"
+  },
+  "healthcheck": {
+    "test": ["CMD", "curl", "-f", "http://localhost:9000/health"],
+    "interval": "30s",
+    "timeout": "10s",
+    "retries": 3,
+    "start_period": "10s"
+  }
+}
+

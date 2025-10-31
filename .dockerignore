@@ -1,0 +1,14 @@
+# Ne copier QUE psp-h264-proxy.sh dans l'image
+*.md
+.git/
+.gitignore
+.github/
+docker-compose.yml
+*.service
+deploy-to-server.sh
+test-proxy.sh
+build-and-push.sh
+README.md
+INSTALL.md
+QUICKSTART.md
+

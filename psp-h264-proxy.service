@@ -1,0 +1,22 @@
+[Unit]
+Description=PSP H.264 Annex-B Proxy for Jellyfin
+Documentation=https://github.com/janokun/psp-jellyfin-client
+After=network.target jellyfin.service
+
+[Service]
+Type=simple
+User=janokun
+WorkingDirectory=/home/janokun
+ExecStart=/usr/local/bin/psp-h264-proxy.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Limites de ressources
+LimitNOFILE=4096
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
+
