@@ -11,7 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
 
 # Version du proxy
-VERSION = "1.1.0"  # Mise à jour automatique via CI/CD
+VERSION = "1.2.0"  # Réencodage avec IDR forcées
 
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
@@ -65,23 +65,34 @@ class ProxyHandler(BaseHTTPRequestHandler):
         self.end_headers()
         
         # Lancer FFmpeg et streamer la sortie
-        # Note: copy mode garde les IDR originales du fichier
-        # Le client PSP skipera automatiquement jusqu'à la première IDR
+        # RÉENCODAGE avec IDR forcées pour compatibilité PSP Media Engine
+        # Le Media Engine DOIT commencer par une IDR (type 5)
         try:
             ffmpeg_cmd = [
                 'ffmpeg',
                 '-loglevel', 'error',
                 '-i', full_url,
                 '-map', '0:v:0',
-                '-c:v', 'copy',
-                '-bsf:v', 'h264_mp4toannexb',
+                # Réencodage H.264 Baseline pour PSP
+                '-c:v', 'libx264',
+                '-preset', 'ultrafast',      # Rapide (faible CPU)
+                '-tune', 'zerolatency',      # Streaming temps réel
+                '-profile:v', 'baseline',    # PSP compatible
+                '-level', '3.0',             # PSP max
+                '-s', '480x272',             # Résolution PSP
+                '-b:v', '512k',              # Bitrate
+                '-maxrate', '512k',
+                '-bufsize', '1M',
+                # IDR forcées
+                '-g', '12',                  # IDR toutes les 12 frames (~0.5s à 24fps)
+                '-keyint_min', '12',         # Min aussi = force IDR
+                '-sc_threshold', '0',        # Pas de scene cut auto
+                '-x264-params', 'keyint=12:min-keyint=12:no-scenecut',
+                # Output
                 '-f', 'h264',
+                '-an',                       # Pas d'audio (simplifie)
                 '-'
             ]
-            
-            # Alternative pour forcer des IDR (nécessite réencodage, plus CPU) :
-            # '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
-            # '-g', '24', '-sc_threshold', '0', '-forced-idr', '1'
             
             logging.info(f"Démarrage FFmpeg pour {video_id}")
             
