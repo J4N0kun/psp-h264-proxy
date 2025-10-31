@@ -51,17 +51,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         
         logging.info(f"Stream demandé: {video_id}")
         
-        # Construire l'URL Jellyfin
-        # Utiliser le transcode pour forcer une IDR au début
-        jellyfin_url = f"http://{JELLYFIN_HOST}:{JELLYFIN_PORT}/Videos/{video_id}/stream.mp4"
-        params = (
-            f"Static=false&VideoCodec=h264&AudioCodec=aac&"
-            f"MaxWidth=480&MaxHeight=272&VideoBitrate=768000&"
-            f"AudioBitrate=64000&VideoLevel=30&Profile=baseline&"
-            f"SegmentContainer=ts&"  # TS au lieu de MP4 = plus d'IDR
-            f"StartTimeTicks=0&"     # Démarrer au début
-            f"api_key={API_KEY}"
-        )
+        # Construire l'URL Jellyfin (Direct Stream)
+        jellyfin_url = f"http://{JELLYFIN_HOST}:{JELLYFIN_PORT}/Videos/{video_id}/stream"
+        params = f"Static=true&MediaSourceId={video_id}&api_key={API_KEY}"
         
         full_url = f"{jellyfin_url}?{params}"
         
