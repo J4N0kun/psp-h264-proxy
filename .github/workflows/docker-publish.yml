@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
-      - feature/media-engine-h264
     paths:
-      - 'server-proxy/**'
+      - '**'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:  # Permet de lancer manuellement
   release:
@@ -53,8 +52,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./server-proxy
-          file: ./server-proxy/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
