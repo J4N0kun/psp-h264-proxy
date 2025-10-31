@@ -10,6 +10,9 @@ import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
 
+# Version du proxy
+VERSION = "1.1.0"  # Mise à jour automatique via CI/CD
+
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
 JELLYFIN_HOST = os.environ.get('JELLYFIN_HOST', 'localhost')
@@ -122,11 +125,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("PSP H.264 Annex-B Proxy for Jellyfin (Python)")
+    print(f"PSP H.264 Annex-B Proxy v{VERSION}")
     print("=" * 50)
     print(f"Port d'écoute: {PROXY_PORT}")
     print(f"Jellyfin: {JELLYFIN_HOST}:{JELLYFIN_PORT}")
     print(f"Log: {LOG_FILE}")
+    print("Mode: Direct Stream (Static=true)")
     print("Prêt à recevoir des connexions PSP...")
     print("")
     
