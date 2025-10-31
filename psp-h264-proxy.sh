@@ -78,7 +78,52 @@ handle_request() {
 # Boucle principale avec socat (plus robuste que nc)
 if command -v socat &> /dev/null; then
     echo "Utilisation de socat pour le serveur HTTP..." | tee -a "$LOG_FILE"
-    socat TCP-LISTEN:$PROXY_PORT,fork,reuseaddr SYSTEM:"bash -c 'source $(readlink -f $0); handle_request'"
+    
+    while true; do
+        socat -T 60 TCP-LISTEN:$PROXY_PORT,fork,reuseaddr EXEC:"/bin/bash -c '
+            # Lire la requête HTTP (première ligne)
+            read -r REQUEST_LINE
+            
+            # Extraire l ID vidéo
+            VIDEO_ID=\$(echo \"\$REQUEST_LINE\" | grep -oP \"GET /stream/\\K[a-f0-9]+\" || echo \"\")
+            
+            # Lire le reste des headers
+            while read -r HEADER; do
+                [ -z \"\$HEADER\" ] && break
+                HEADER=\$(echo \"\$HEADER\" | tr -d \"\\r\")
+            done
+            
+            if [ -z \"\$VIDEO_ID\" ]; then
+                echo \"[$(date '+%Y-%m-%d %H:%M:%S')] ERREUR: ID vidéo manquant\" >> /app/psp-h264-proxy.log
+                echo \"HTTP/1.1 400 Bad Request\"
+                echo \"Content-Type: text/plain\"
+                echo \"Connection: close\"
+                echo \"\"
+                echo \"Erreur: ID vidéo requis\"
+                exit 1
+            fi
+            
+            echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Stream: \$VIDEO_ID\" >> /app/psp-h264-proxy.log
+            
+            # URL Jellyfin
+            JELLYFIN_URL=\"http://'$JELLYFIN_HOST':'$JELLYFIN_PORT'/Videos/\$VIDEO_ID/stream.mp4\"
+            PARAMS=\"Static=false&VideoCodec=h264&AudioCodec=aac&MaxWidth=480&MaxHeight=272&VideoBitrate=512000&AudioBitrate=64000&VideoLevel=13&Profile=baseline&api_key='$API_KEY'\"
+            
+            # Headers HTTP
+            echo \"HTTP/1.1 200 OK\"
+            echo \"Content-Type: video/h264\"
+            echo \"Connection: close\"
+            echo \"Cache-Control: no-cache\"
+            echo \"\"
+            
+            # Stream H.264 Annex-B
+            ffmpeg -loglevel error -i \"\$JELLYFIN_URL?\$PARAMS\" -map 0:v:0 -c:v copy -bsf:v h264_mp4toannexb -f h264 - 2>>/app/psp-h264-proxy.log
+            
+            echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Stream terminé: \$VIDEO_ID\" >> /app/psp-h264-proxy.log
+        '"
+        
+        sleep 0.1
+    done
 else
     echo "socat non trouvé, utilisation de netcat (moins robuste)..." | tee -a "$LOG_FILE"
     # Fallback sur nc (netcat)
