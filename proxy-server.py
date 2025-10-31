@@ -11,7 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
 
 # Version du proxy
-VERSION = "1.2.1"  # Fix x264-params syntax pour IDR forcées
+VERSION = "1.3.0"  # Baseline STRICT: no B-frames, CAVLC, 1 ref, no wpred/dct8x8
 
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
@@ -73,20 +73,27 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 '-loglevel', 'error',
                 '-i', full_url,
                 '-map', '0:v:0',
-                # Réencodage H.264 Baseline pour PSP
-                '-c:v', 'libx264',
-                '-preset', 'ultrafast',      # Rapide (faible CPU)
-                '-tune', 'zerolatency',      # Streaming temps réel
-                '-profile:v', 'baseline',    # PSP compatible
-                '-level', '3.0',             # PSP max
-                '-s', '480x272',             # Résolution PSP
-                '-b:v', '512k',              # Bitrate
-                '-maxrate', '512k',
-                '-bufsize', '1M',
+                        # Réencodage H.264 Baseline STRICT pour PSP
+                        '-c:v', 'libx264',
+                        '-preset', 'ultrafast',      # Rapide (faible CPU)
+                        '-tune', 'zerolatency',      # Streaming temps réel
+                        '-profile:v', 'baseline',    # PSP compatible
+                        '-level', '3.0',             # PSP max
+                        '-pix_fmt', 'yuv420p',       # Format couleur PSP
+                        '-s', '480x272',             # Résolution PSP
+                        '-r', '24',                  # Framerate fixe
+                        '-b:v', '512k',              # Bitrate
+                        '-maxrate', '512k',
+                        '-bufsize', '1M',
                         # IDR forcées
                         '-force_key_frames', 'expr:gte(n,n_forced*12)',  # IDR toutes les 12 frames
                         '-g', '12',                  # GOP size max
                         '-sc_threshold', '0',        # Désactiver scene cut detection
+                        # Contraintes STRICTES Baseline (PSP Media Engine)
+                        '-bf', '0',                  # PAS de B-frames
+                        '-refs', '1',                # 1 seule ref frame
+                        '-coder', '0',               # CAVLC (pas CABAC)
+                        '-flags2', '-wpred-dct8x8',  # Désactiver weighted pred + 8x8 DCT
                 # Output
                 '-f', 'h264',
                 '-an',                       # Pas d'audio (simplifie)
