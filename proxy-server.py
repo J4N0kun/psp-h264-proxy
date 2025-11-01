@@ -12,7 +12,7 @@ import logging
 import struct
 
 # Version du proxy
-VERSION = "1.5.0"  # SPS PATCHER: Force POC type 0 (PSP rejette POC type 2)
+VERSION = "1.5.1"  # FIX: pipe:1 pour FFmpeg stdout + SPS PATCHER POC type 0
 
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
