@@ -138,11 +138,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '-coder', '0',               # CAVLC (pas CABAC)
                         '-partitions', 'none',       # Désactiver partitions avancées
                         '-weightp', '0',             # Désactiver weighted prediction
-                        '-x264opts', 'ref=2:bframes=0:b-adapt=0:no-cabac:keyint=12:min-keyint=12:no-scenecut'
+                        '-x264opts', 'ref=2:bframes=0:b-adapt=0:no-cabac:keyint=12:min-keyint=12:no-scenecut',
                 # Output
-                '-f', 'h264',
+                '-f', 'h264',                # Format de sortie: raw H.264 Annex-B
                 '-an',                       # Pas d'audio (simplifie)
-                '-'
+                'pipe:1'                     # Stdout (au lieu de '-')
             ]
             
             logging.info(f"Démarrage FFmpeg pour {video_id}")
