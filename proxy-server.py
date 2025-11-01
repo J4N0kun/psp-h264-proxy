@@ -9,9 +9,10 @@ import sys
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
+import struct
 
 # Version du proxy
-VERSION = "1.3.1"  # Fix flags2 syntax: use -weightp 0 instead
+VERSION = "1.5.0"  # SPS PATCHER: Force POC type 0 (PSP rejette POC type 2)
 
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
@@ -29,6 +30,48 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+
+# ===== SPS PATCHER pour forcer POC type 0 (compatibilité PSP) =====
+def patch_sps_to_poc0(data):
+    """
+    Trouve le premier SPS dans un flux H.264 Annex-B et le remplace par un SPS
+    avec POC type 0 au lieu de POC type 2.
+    
+    Le PSP Media Engine REFUSE POC type 2 -> erreur 0x80628001
+    """
+    # Chercher start code + NAL type 7 (SPS)
+    i = 0
+    while i < len(data) - 4:
+        if data[i:i+4] == b'\x00\x00\x00\x01':
+            nal_type = data[i+4] & 0x1F
+            if nal_type == 7:  # SPS trouvé
+                # Trouver la fin du SPS (prochain start code)
+                j = i + 5
+                while j < len(data) - 4:
+                    if data[j:j+4] == b'\x00\x00\x00\x01' or data[j:j+3] == b'\x00\x00\x01':
+                        break
+                    j += 1
+                
+                # SPS patché minimaliste avec POC type 0
+                # Baseline, Level 3.0, 480x272, 1 ref, POC type 0
+                new_sps = bytes([
+                    0x00, 0x00, 0x00, 0x01,  # Start code
+                    0x67,  # NAL header (type 7)
+                    0x42, 0xC0, 0x1E,  # Baseline, constraint 0xC0, Level 3.0
+                    0xED,  # seq_param_id=0, log2_max_frame_num=4
+                    0x03,  # POC type 0, log2_max_poc_lsb=6
+                    0xC1,  # max_ref=1, gaps=0, width_mbs=29
+                    0x1C,  # height_mbs=16, frame_mbs_only=1, direct_8x8=1
+                    0x80   # no crop, no VUI, stop bit
+                ])
+                
+                logging.info(f"SPS patché: POC type 2 → 0 (PSP compat)")
+                
+                # Remplacer le SPS dans le buffer
+                return data[:i] + new_sps + data[j:]
+        i += 1
+    
+    return data  # Pas de SPS trouvé, retourner tel quel
 
 class ProxyHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -91,10 +134,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '-sc_threshold', '0',        # Désactiver scene cut detection
                         # Contraintes STRICTES Baseline (PSP Media Engine)
                         '-bf', '0',                  # PAS de B-frames
-                        '-refs', '1',                # 1 seule ref frame
+                        '-refs', '2',                # 2 ref frames (x264 met 0 si on force 1)
                         '-coder', '0',               # CAVLC (pas CABAC)
                         '-partitions', 'none',       # Désactiver partitions avancées
                         '-weightp', '0',             # Désactiver weighted prediction
+                        '-x264opts', 'ref=2:bframes=0:b-adapt=0:no-cabac:keyint=12:min-keyint=12:no-scenecut'
                 # Output
                 '-f', 'h264',
                 '-an',                       # Pas d'audio (simplifie)
@@ -110,22 +154,41 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 stderr=subprocess.PIPE
             )
             
-            # Streamer les données par chunks
+            # Streamer les données par chunks avec SPS patching
             chunk_size = 8192
             bytes_sent = 0
+            sps_patched = False
+            buffer = b''
             
             while True:
                 chunk = process.stdout.read(chunk_size)
                 if not chunk:
                     break
                 
-                try:
-                    self.wfile.write(chunk)
-                    bytes_sent += len(chunk)
-                except BrokenPipeError:
-                    logging.warning(f"Client déconnecté après {bytes_sent} bytes")
-                    process.terminate()
-                    break
+                # Accumuler dans le buffer jusqu'au premier patch
+                if not sps_patched:
+                    buffer += chunk
+                    # Patcher le SPS dès qu'on a assez de données (au moins 1KB)
+                    if len(buffer) >= 1024:
+                        buffer = patch_sps_to_poc0(buffer)
+                        sps_patched = True
+                        try:
+                            self.wfile.write(buffer)
+                            bytes_sent += len(buffer)
+                            buffer = b''
+                        except BrokenPipeError:
+                            logging.warning(f"Client déconnecté après {bytes_sent} bytes")
+                            process.terminate()
+                            break
+                else:
+                    # Après le patch, streamer directement
+                    try:
+                        self.wfile.write(chunk)
+                        bytes_sent += len(chunk)
+                    except BrokenPipeError:
+                        logging.warning(f"Client déconnecté après {bytes_sent} bytes")
+                        process.terminate()
+                        break
             
             # Attendre que FFmpeg se termine
             process.wait(timeout=5)
