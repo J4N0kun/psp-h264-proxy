@@ -11,7 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
 
 # Version du proxy
-VERSION = "1.3.0"  # Baseline STRICT: no B-frames, CAVLC, 1 ref, no wpred/dct8x8
+VERSION = "1.3.1"  # Fix flags2 syntax: use -weightp 0 instead
 
 # Configuration
 PROXY_PORT = int(os.environ.get('PROXY_PORT', 9000))
@@ -93,7 +93,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '-bf', '0',                  # PAS de B-frames
                         '-refs', '1',                # 1 seule ref frame
                         '-coder', '0',               # CAVLC (pas CABAC)
-                        '-flags2', '-wpred-dct8x8',  # Désactiver weighted pred + 8x8 DCT
+                        '-partitions', 'none',       # Désactiver partitions avancées
+                        '-weightp', '0',             # Désactiver weighted prediction
                 # Output
                 '-f', 'h264',
                 '-an',                       # Pas d'audio (simplifie)
