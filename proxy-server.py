@@ -168,10 +168,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 # Accumuler dans le buffer jusqu'au premier patch
                 if not sps_patched:
                     buffer += chunk
-                    # Patcher le SPS dès qu'on a assez de données (au moins 1KB)
-                    if len(buffer) >= 1024:
+                    # Patcher dès qu'on a assez de données pour détecter SPS (>=256 bytes suffit)
+                    if len(buffer) >= 256:
                         buffer = patch_sps_to_poc0(buffer)
                         sps_patched = True
+                        logging.info(f"SPS patch appliqué, envoi de {len(buffer)} bytes")
                         try:
                             self.wfile.write(buffer)
                             bytes_sent += len(buffer)
